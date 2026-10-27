@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Best Bets | KFS Betting & Sweating 2026-27</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏀</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+<style>
+  /* ============ CONFIG lives in the <script> at the bottom ============ */
+  :root {
+    --court: #0A2240;
+    --court-2: #102C52;
+    --line: #23497A;
+    --chalk: #F2F4F7;
+    --muted: #9FB3CC;
+    --orange: #F58426;
+    --win: #4CC38A;
+    --loss: #FF7A7A;
+    --display: 'Big Shoulders Display', 'Arial Narrow', Impact, sans-serif;
+    --body: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--court);
+    color: var(--chalk);
+    font-family: var(--body);
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 32px 20px 64px; display: grid; gap: 28px; }
+  a { color: var(--orange); }
+  :focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
+
+  /* Header */
+  .head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; }
+  .head h1 { margin: 0; font-family: var(--display); font-weight: 800; font-size: clamp(2.6rem, 7vw, 4rem); line-height: .9; letter-spacing: .01em; }
+  .head p { margin: 6px 0 0; color: var(--muted); }
+  .updated { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: .875rem; }
+  button.refresh { font: inherit; font-size: .875rem; color: var(--chalk); background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 4px 14px; cursor: pointer; }
+  button.refresh:hover { border-color: var(--orange); }
+
+  /* Scoreboard: the one loud element */
+  .board { position: relative; border: 3px solid var(--orange); border-radius: 6px; background: var(--court-2); display: grid; grid-template-columns: 1fr 1fr; overflow: hidden; }
+  .board::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(0deg, rgba(255,255,255,.025) 0 2px, transparent 2px 4px); pointer-events: none; }
+  .board-cell { padding: 20px 24px; display: grid; gap: 6px; align-content: end; }
+  .board-cell + .board-cell { border-left: 1px solid var(--line); }
+  .board-label { color: var(--orange); font-weight: 600; font-size: 1rem; }
+  .board-big { font-family: var(--display); font-weight: 800; font-size: clamp(2.6rem, 8vw, 4.4rem); line-height: .9; font-variant-numeric: tabular-nums; }
+  .board-names { font-family: var(--display); font-weight: 800; font-size: clamp(1.7rem, 4.5vw, 2.6rem); line-height: 1; }
+  .leader-profit { color: var(--orange); }
+  .board-note { color: var(--muted); font-size: .875rem; }
+
+  /* Game parlay */
+  .stats { display: flex; flex-wrap: wrap; gap: 12px 36px; margin-bottom: 16px; }
+  .stat b { display: block; font-family: var(--display); font-weight: 800; font-size: 2rem; line-height: 1; font-variant-numeric: tabular-nums; }
+  .stat span { color: var(--muted); font-size: .85rem; }
+  .legs { list-style: none; margin: 4px 0 0; padding: 0; font-size: .85rem; color: var(--muted); }
+  .legs li.win { color: var(--win); }
+  .legs li.loss { color: var(--loss); }
+  .legs li.void { text-decoration: line-through; }
+
+  /* Sections */
+  section h2 { margin: 0 0 4px; font-family: var(--display); font-weight: 600; font-size: 1.9rem; line-height: 1.1; }
+  section .note { margin: 0 0 14px; color: var(--muted); font-size: .9rem; max-width: 70ch; }
+  .panel { border-top: 1px solid var(--line); padding-top: 18px; }
+
+  /* Tables */
+  .scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th { text-align: left; color: var(--muted); font-weight: 500; font-size: .85rem; padding: 6px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  td { padding: 10px; border-bottom: 1px solid rgba(35,73,122,.55); vertical-align: top; }
+  .num { text-align: right; white-space: nowrap; }
+  .name { font-weight: 600; }
+  .standings td { font-size: 1.05rem; }
+  .standings .rank { font-family: var(--display); font-weight: 800; font-size: 1.4rem; width: 2.5rem; color: var(--muted); }
+  .standings .profit { font-family: var(--display); font-weight: 800; font-size: 1.5rem; }
+  .standings tr.lead td { background: rgba(245,132,38,.12); }
+  .standings tr.lead .rank { color: var(--orange); }
+  .pos { color: var(--win); }
+  .neg { color: var(--loss); }
+  .pill { display: inline-block; border-radius: 999px; padding: 0 10px; font-size: .8rem; border: 1px solid var(--line); white-space: nowrap; }
+  .pill.win { color: var(--win); border-color: rgba(76,195,138,.5); }
+  .pill.loss { color: var(--loss); border-color: rgba(255,122,122,.5); }
+  .pill.void, .pill.pending { color: var(--muted); }
+  .tag { color: var(--muted); font-size: .8rem; }
+
+  /* Chart */
+  .chart { position: relative; min-height: 300px; }
+  .chart svg { display: block; overflow: visible; }
+  .chart text { font-family: var(--body); }
+  .tick { fill: var(--muted); font-size: 12px; }
+  .endlabel { font-size: 13px; font-weight: 600; }
+  .tip { position: absolute; top: 6px; pointer-events: none; background: var(--court); border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,.35); padding: 6px 10px; font-size: .8rem; display: none; gap: 2px; min-width: 9.5rem; }
+  .tip-head { color: var(--muted); }
+  .tip-row { display: flex; align-items: center; gap: 6px; }
+  .tip-row b { margin-left: auto; font-weight: 600; }
+  .sw { width: 8px; height: 8px; border-radius: 2px; flex: none; }
+
+  /* Pick log controls */
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+  .chip { font: inherit; font-size: .9rem; color: var(--chalk); background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 4px 14px; cursor: pointer; }
+  .chip[aria-pressed="true"] { background: var(--orange); border-color: var(--orange); color: var(--court); font-weight: 600; }
+  .search { flex: 1 1 12rem; min-width: 0; font: inherit; color: var(--chalk); background: var(--court-2); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; }
+  .search::placeholder { color: var(--muted); }
+  .count { color: var(--muted); font-size: .85rem; }
+  .logbox { max-height: 36rem; overflow: auto; }
+  .logbox th { position: sticky; top: 0; background: var(--court); }
+
+  .message { color: var(--muted); margin: 0; }
+  .error { border: 1px solid var(--loss); border-radius: 6px; padding: 12px 14px; color: var(--chalk); }
+  footer { color: var(--muted); font-size: .85rem; border-top: 1px solid var(--line); padding-top: 14px; }
+
+  @media (max-width: 560px) {
+    .board { grid-template-columns: 1fr; }
+    .board-cell + .board-cell { border-left: 0; border-top: 1px solid var(--line); }
+    .hide-sm { display: none; }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .board.flash { animation: flash .9s ease-out 1; }
+    @keyframes flash { from { box-shadow: 0 0 0 0 rgba(245,132,38,.55); } to { box-shadow: 0 0 0 18px rgba(245,132,38,0); } }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="head">
+    <div>
+      <h1>Best Bets</h1>
+      <p>KFS Betting &amp; Sweating 2026-27. Every pick counts as a $100 bet.</p>
+    </div>
+    <div class="updated">
+      <span id="updated">Loading the latest picks</span>
+      <button class="refresh" id="refresh" type="button">Refresh</button>
+    </div>
+  </header>
+
+  <div id="error" class="error" hidden></div>
+
+  <div class="board" id="board" aria-live="polite">
+    <div class="board-cell">
+      <div class="board-label">The crew combined</div>
+      <div class="board-big" id="crewTotal">&nbsp;</div>
+      <div class="board-note" id="crewNote"></div>
+    </div>
+    <div class="board-cell">
+      <div class="board-label" id="boardLabel">In the lead</div>
+      <div class="board-names" id="boardNames">&nbsp;</div>
+      <div class="board-big leader-profit" id="boardProfit"></div>
+      <div class="board-note" id="boardNote"></div>
+    </div>
+  </div>
+
+  <section class="panel" id="leaderboard">
+    <h2>Leaderboard</h2>
+    <p class="note">Season profit if everyone bet $100 on every pick. Win % leaves out voids, and pending bets count once they're graded.</p>
+    <div class="scroll">
+      <table class="standings">
+        <thead><tr><th>#</th><th>Name</th><th>W-L-V</th><th class="num">Win %</th><th class="num hide-sm">Pending</th><th class="num">Profit</th></tr></thead>
+        <tbody id="standingsBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel" id="season">
+    <h2>Up or down all season</h2>
+    <p class="note">Running profit after each game with graded bets. Hover or tap the chart for a game's numbers.</p>
+    <p class="message" id="chartEmpty" hidden>The chart starts once the first bets are graded.</p>
+    <div class="chart" id="chart"></div>
+  </section>
+
+  <section class="panel" id="parlay">
+    <h2>Game parlay</h2>
+    <p class="note">What if every best bet for a game went into one $10 parlay? One loss sinks it, a voided leg drops out and the payout multiplies every remaining leg’s odds.</p>
+    <div class="stats">
+      <div class="stat"><b id="parlayProfit">$0.00</b><span>Season profit</span></div>
+      <div class="stat"><b id="parlayRecord">0 of 0</b><span>Parlays hit</span></div>
+      <div class="stat"><b id="parlayBest">—</b><span id="parlayBestNote">Best hit</span></div>
+    </div>
+    <p class="message" id="parlayChartEmpty" hidden>The chart starts once the first game’s parlay is decided.</p>
+    <div class="chart" id="parlayChart"></div>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Game</th><th>Legs</th><th class="num">Odds</th><th>Result</th><th class="num">Profit</th></tr></thead>
+        <tbody id="parlayBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel" id="picks">
+    <h2>Pick log</h2>
+    <p class="note">Every bet submitted through the form, newest game first.</p>
+    <div class="controls" id="chips" role="group" aria-label="Show bets for"></div>
+    <div class="controls">
+      <input class="search" id="search" type="search" placeholder="Search bets, players or games" aria-label="Search bets">
+      <span class="count" id="count"></span>
+    </div>
+    <p class="message" id="logEmpty" hidden>No bets yet. They show up here as soon as someone submits the form.</p>
+    <div class="logbox">
+      <table>
+        <thead><tr><th>Game</th><th>Name</th><th>Bet</th><th class="num">Odds</th><th>Result</th><th class="num">Profit</th></tr></thead>
+        <tbody id="logBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>Scoring: a winner at minus odds pays $100 × 100 ÷ odds, a winner at plus odds pays the odds, a loss is −$100 and a void is $0. Boosted odds are used when entered. Game parlays multiply each leg’s decimal odds on a $10 stake; a loss is −$10. Real sportsbooks price same-game parlays lower than this, so treat it as a fun what-if. Updates automatically every 5 minutes.</footer>
+</div>
+
+<script>
+/* ======================= CONFIG ======================= */
+// Responses spreadsheet (must be shared "Anyone with the link: Viewer").
+const SHEET_ID = '1g3C0TU6ev_DMQXq6s_Cul1Pcw-jXEL71ZuCAdGYP5YQ';
+const SHEET_TAB = 'Best Bets';
+// Optional: paste a "Publish to web" CSV link here to use it instead.
+const PUBLISHED_CSV_URL = '';
+const CREW = ['Andrew', 'Jeff', 'Jon', 'Mensa', 'Shawn'];
+const REFRESH_MINUTES = 5;
+const PARLAY_STAKE = 10;
+/* ===================================================== */
+
+const CSV_URL = PUBLISHED_CSV_URL ||
+  'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/gviz/tq?tqx=out:csv&headers=1&sheet=' + encodeURIComponent(SHEET_TAB);
+
+const TEAMS = { 'Atlanta Hawks': 'ATL', 'Boston Celtics': 'BOS', 'Brooklyn Nets': 'BKN', 'Charlotte Hornets': 'CHA', 'Chicago Bulls': 'CHI', 'Cleveland Cavaliers': 'CLE', 'Dallas Mavericks': 'DAL', 'Denver Nuggets': 'DEN', 'Detroit Pistons': 'DET', 'Golden State Warriors': 'GSW', 'Houston Rockets': 'HOU', 'Indiana Pacers': 'IND', 'Los Angeles Clippers': 'LAC', 'Los Angeles Lakers': 'LAL', 'Memphis Grizzlies': 'MEM', 'Miami Heat': 'MIA', 'Milwaukee Bucks': 'MIL', 'Minnesota Timberwolves': 'MIN', 'New Orleans Pelicans': 'NOP', 'Oklahoma City Thunder': 'OKC', 'Orlando Magic': 'ORL', 'Philadelphia 76ers': 'PHI', 'Phoenix Suns': 'PHX', 'Portland Trail Blazers': 'POR', 'Sacramento Kings': 'SAC', 'San Antonio Spurs': 'SAS', 'Toronto Raptors': 'TOR', 'Utah Jazz': 'UTA', 'Washington Wizards': 'WAS' };
+const STAT = { 'Points': 'points', 'Rebounds': 'rebounds', 'Assists': 'assists', '3PM': '3PM', 'Steals': 'steals', 'Blocks': 'blocks', 'Stocks (steals + blocks)': 'stocks', 'PRA (points + rebounds + assists)': 'PRA', 'Points + Rebounds': 'P+R', 'Points + Assists': 'P+A', 'Rebounds + Assists': 'R+A', 'FG made': 'FG made', 'FG attempted': 'FGA', 'Double-double': 'double-double', 'Triple-double': 'triple-double' };
+const MONTHS = { Jan: 1, Feb: 2, Mar: 3, Apr: 4, May: 5, Jun: 6, Jul: 7, Aug: 8, Sep: 9, Oct: 10, Nov: 11, Dec: 12 };
+const SERIES = ['#F58426', '#4FA3E0', '#F2C14E', '#C9CED6', '#A78BFA', '#4CC38A', '#FF7A7A', '#7DD3FC'];
+
+const $ = (id) => document.getElementById(id);
+const el = (tag, text, cls) => { const n = document.createElement(tag); if (text != null) n.textContent = text; if (cls) n.className = cls; return n; };
+const money = (v) => (v == null || !isFinite(v) ? '—' : (v > 0 ? '+' : v < 0 ? '−' : '') + '$' + Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+const axisMoney = (v) => (v < 0 ? '−' : '') + '$' + Math.abs(v).toLocaleString('en-US');
+const tone = (v) => (v > 0 ? 'pos' : v < 0 ? 'neg' : '');
+const pad = (n) => String(n).padStart(2, '0');
+const num = (s) => { const t = String(s == null ? '' : s).trim(); if (!t) return null; const n = Number(t.replace(/[^0-9.+-]/g, '')); return isFinite(n) ? n : null; };
+const per = (p) => (p && p !== 'Full game' ? ' (' + p + ')' : '');
+const signed = (n) => (n == null ? '' : n > 0 ? '+' + n : String(n));
+
+let state = { graded: [], standings: [], running: [], parlays: [], parlayRunning: [] };
+let who = 'All';
+let query = '';
+let firstLoad = true;
+
+/* ---------- CSV ---------- */
+function parseCsv(text) {
+  text = text.replace(/^\uFEFF/, '');
+  const out = []; let row = [], cell = '', inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQ) {
+      if (ch === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else inQ = false; }
+      else cell += ch;
+    } else if (ch === '"') inQ = true;
+    else if (ch === ',') { row.push(cell); cell = ''; }
+    else if (ch === '\n' || ch === '\r') { if (ch === '\r' && text[i + 1] === '\n') i++; row.push(cell); out.push(row); row = []; cell = ''; }
+    else cell += ch;
+  }
+  if (cell !== '' || row.length) { row.push(cell); out.push(row); }
+  const cols = (out[0] || []).map((c) => c.trim());
+  return out.slice(1).filter((r) => r.some((c) => c.trim() !== ''))
+    .map((r) => Object.fromEntries(cols.map((c, i) => [c, r[i] !== undefined ? r[i] : ''])));
+}
+
+/* ---------- Scoring ---------- */
+function grade(bets) {
+  return bets.map((b) => {
+    const g = String(b['Game'] || '').trim();
+    const m = g.match(/^\w{3}, (\w{3}) (\d{1,2}), (\d{4}) (v|@) (.+)$/);
+    const ts = String(b['Timestamp'] || '');
+    const tm = ts.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    const gameDate = m ? m[3] + '-' + pad(MONTHS[m[1]]) + '-' + pad(m[2]) : tm ? tm[3] + '-' + pad(tm[1]) + '-' + pad(tm[2]) : '';
+    const opp = (m && TEAMS[m[5]]) || 'Opponent';
+    const gameLabel = m ? MONTHS[m[1]] + '/' + Number(m[2]) + ' ' + (m[4] === 'v' ? 'vs' : '@') + ' ' + opp : g;
+    const type = String(b['Bet type'] || '').trim();
+    let bet = '';
+    if (type === 'Player prop') {
+      const player = b['Prop: Player'] === 'Opponent player' ? String(b['Prop: Opponent player name'] || 'Opponent player').trim() : b['Prop: Player'];
+      const stat = STAT[b['Prop: Stat']] || b['Prop: Stat'] || '';
+      const dir = String(b['Prop: Over / Under'] || '');
+      bet = (dir === 'Yes' ? player + ' ' + stat : player + ' ' + dir.toLowerCase() + ' ' + b['Prop: Line'] + ' ' + stat) + per(b['Prop: Period']);
+    } else if (type === 'Spread') {
+      bet = (b['Spread: Team'] === 'Knicks' ? 'Knicks' : opp) + ' ' + signed(num(b['Spread: Line'])) + per(b['Spread: Period']);
+    } else if (type === 'Moneyline') {
+      bet = (b['Moneyline: Team'] === 'Knicks' ? 'Knicks' : opp) + ' ML' + per(b['Moneyline: Period']);
+    } else if (type === 'Total') {
+      const w = b['Total: Which total'];
+      const lead = w === 'Knicks team total' ? 'Knicks TT ' : w === 'Opponent team total' ? opp + ' TT ' : '';
+      bet = lead + String(b['Total: Over / Under'] || '').toLowerCase() + ' ' + b['Total: Line'] + per(b['Total: Period']);
+      bet = bet.charAt(0).toUpperCase() + bet.slice(1);
+    } else {
+      bet = String(b['Other: Describe the bet'] || '').trim();
+    }
+    const boost = num(b['Boosted odds (if any)']);
+    const odds = boost != null ? boost : num(b['Odds']);
+    const raw = String(b['Result'] || '').trim().toLowerCase();
+    const result = raw === 'win' ? 'Win' : raw === 'loss' ? 'Loss' : raw === 'void' ? 'Void' : 'Pending';
+    let profit = null;
+    if (result === 'Win' && odds != null) profit = Math.round((odds < 0 ? 10000 / Math.abs(odds) : odds) * 100) / 100;
+    if (result === 'Loss') profit = -100;
+    if (result === 'Void') profit = 0;
+    return { Timestamp: ts, Name: String(b['Name'] || '').trim(), Game: g, GameLabel: gameLabel, GameDate: gameDate, Bet: bet, Odds: odds, Boosted: boost != null, Result: result, Profit: profit };
+  });
+}
+
+function standings(graded) {
+  const names = Array.from(new Set(CREW.concat(graded.map((g) => g.Name).filter(Boolean))));
+  const rows = names.map((n) => {
+    const mine = graded.filter((g) => g.Name === n);
+    const W = mine.filter((g) => g.Result === 'Win').length;
+    const L = mine.filter((g) => g.Result === 'Loss').length;
+    const V = mine.filter((g) => g.Result === 'Void').length;
+    const P = mine.filter((g) => g.Result === 'Pending').length;
+    const profit = Math.round(mine.reduce((t, g) => t + (g.Profit || 0), 0) * 100) / 100;
+    return { Name: n, W, L, V, P, WinPct: W + L ? W / (W + L) : null, Profit: profit };
+  });
+  rows.sort((a, b) => b.Profit - a.Profit || (b.WinPct == null ? -1 : b.WinPct) - (a.WinPct == null ? -1 : a.WinPct) || a.Name.localeCompare(b.Name));
+  rows.forEach((r, i) => { r.Rank = i > 0 && rows[i - 1].Profit === r.Profit ? rows[i - 1].Rank : i + 1; });
+  return rows;
+}
+
+function running(graded) {
+  const done = graded.filter((g) => g.Profit != null);
+  const byGame = new Map();
+  done.forEach((g) => { if (!byGame.has(g.Game)) byGame.set(g.Game, { label: g.GameLabel, date: g.GameDate, bets: [] }); byGame.get(g.Game).bets.push(g); });
+  const order = Array.from(byGame.values()).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  if (!order.length) return [];
+  const names = Array.from(new Set(CREW.concat(done.map((g) => g.Name).filter(Boolean))));
+  const tot = Object.fromEntries(names.map((n) => [n, 0]));
+  const rows = names.map((n) => ({ Seq: 0, Label: 'Start', Name: n, Cum: 0 }));
+  order.forEach((gm, i) => {
+    gm.bets.forEach((b) => { tot[b.Name] = Math.round(((tot[b.Name] || 0) + b.Profit) * 100) / 100; });
+    names.forEach((n) => rows.push({ Seq: i + 1, Label: gm.label, Name: n, Cum: tot[n] }));
+  });
+  return rows;
+}
+
+const toDecimal = (o) => (o > 0 ? 1 + o / 100 : 1 + 100 / Math.abs(o));
+const toAmerican = (d) => (d >= 2 ? Math.round((d - 1) * 100) : Math.round(-100 / (d - 1)));
+const fmtOdds = (o) => (o == null ? '—' : (o > 0 ? '+' : '') + o.toLocaleString('en-US'));
+
+function parlays(graded) {
+  const byGame = new Map();
+  graded.forEach((g) => {
+    if (!g.Game) return;
+    if (!byGame.has(g.Game)) byGame.set(g.Game, { Game: g.Game, Label: g.GameLabel, Date: g.GameDate, legs: [] });
+    byGame.get(g.Game).legs.push(g);
+  });
+  return Array.from(byGame.values()).map((p) => {
+    const live = p.legs.filter((l) => l.Result !== 'Void');
+    const priced = live.every((l) => l.Odds != null);
+    const dec = live.reduce((t, l) => t * (l.Odds != null ? toDecimal(l.Odds) : 1), 1);
+    let result = 'Pending', profit = null;
+    if (live.some((l) => l.Result === 'Loss')) { result = 'Loss'; profit = -PARLAY_STAKE; }
+    else if (!live.length) { result = 'Void'; profit = 0; }
+    else if (!live.some((l) => l.Result === 'Pending')) { result = 'Win'; profit = Math.round(PARLAY_STAKE * (dec - 1) * 100) / 100; }
+    return Object.assign(p, { Odds: live.length && priced ? toAmerican(dec) : null, Result: result, Profit: profit });
+  }).sort((a, b) => (a.Date < b.Date ? -1 : a.Date > b.Date ? 1 : 0));
+}
+
+function parlayRunning(list) {
+  const done = list.filter((p) => p.Profit != null);
+  if (!done.length) return [];
+  let cum = 0;
+  return [{ Seq: 0, Label: 'Start', Name: 'Game parlay', Cum: 0 }].concat(done.map((p, i) => {
+    cum = Math.round((cum + p.Profit) * 100) / 100;
+    return { Seq: i + 1, Label: p.Label, Name: 'Game parlay', Cum: cum };
+  }));
+}
+
+/* ---------- Drawing ---------- */
+function drawBoard() {
+  const played = state.standings.filter((s) => s.W + s.L + s.V > 0);
+  const gradedCount = played.reduce((t, s) => t + s.W + s.L + s.V, 0);
+  const board = $('board');
+  const crew = Math.round(state.standings.reduce((t, s) => t + s.Profit, 0) * 100) / 100;
+  const sum = (k) => state.standings.reduce((t, s) => t + s[k], 0);
+  $('crewTotal').textContent = money(crew);
+  $('crewTotal').className = 'board-big ' + tone(crew);
+  $('crewNote').textContent = gradedCount
+    ? gradedCount.toLocaleString('en-US') + (gradedCount === 1 ? ' bet' : ' bets') + ' graded, ' + sum('W') + '-' + sum('L') + '-' + sum('V') + ' as a group'
+    : 'Nothing graded yet';
+  if (!played.length) {
+    $('boardLabel').textContent = 'No bets graded yet';
+    $('boardNames').textContent = 'Everyone is even';
+    $('boardProfit').textContent = '$0.00';
+    $('boardNote').textContent = 'The leader shows up here once the first results are in.';
+    return;
+  }
+  const top = Math.max.apply(null, played.map((s) => s.Profit));
+  const names = played.filter((s) => s.Profit === top).map((s) => s.Name);
+  const joined = names.length > 1 ? names.slice(0, -1).join(', ') + ' & ' + names[names.length - 1] : names[0];
+  const before = $('boardNames').textContent;
+  $('boardLabel').textContent = names.length > 1 ? 'Tied for the lead' : 'In the lead';
+  $('boardNames').textContent = joined;
+  $('boardProfit').textContent = money(top);
+  $('boardNote').textContent = gradedCount.toLocaleString('en-US') + (gradedCount === 1 ? ' bet graded so far' : ' bets graded so far');
+  if (!firstLoad && before !== joined) { board.classList.remove('flash'); void board.offsetWidth; board.classList.add('flash'); }
+}
+
+function drawStandings() {
+  const body = $('standingsBody');
+  body.replaceChildren();
+  const played = state.standings.filter((s) => s.W + s.L + s.V > 0);
+  const top = played.length ? Math.max.apply(null, played.map((s) => s.Profit)) : null;
+  state.standings.forEach((r) => {
+    const tr = el('tr');
+    if (top != null && r.Profit === top && r.W + r.L + r.V > 0) tr.className = 'lead';
+    tr.append(
+      el('td', String(r.Rank), 'rank'),
+      el('td', r.Name, 'name'),
+      el('td', r.W + '-' + r.L + '-' + r.V),
+      el('td', r.WinPct == null ? '—' : (r.WinPct * 100).toFixed(1) + '%', 'num'),
+      el('td', String(r.P), 'num hide-sm'),
+      el('td', money(r.Profit), 'num profit ' + tone(r.Profit))
+    );
+    body.append(tr);
+  });
+}
+
+function drawChips() {
+  const box = $('chips');
+  box.replaceChildren();
+  const names = ['All'].concat(state.standings.map((s) => s.Name).sort());
+  names.forEach((n) => {
+    const b = el('button', n === 'All' ? 'Everyone' : n, 'chip');
+    b.type = 'button';
+    b.setAttribute('aria-pressed', String(who === n));
+    b.addEventListener('click', () => { who = n; drawChips(); drawLog(); });
+    box.append(b);
+  });
+}
+
+function drawLog() {
+  const body = $('logBody');
+  body.replaceChildren();
+  const all = state.graded;
+  $('logEmpty').hidden = all.length > 0;
+  let list = all.slice();
+  if (who !== 'All') list = list.filter((r) => r.Name === who);
+  if (query) list = list.filter((r) => [r.GameLabel, r.Game, r.Name, r.Bet, r.Result].join(' ').toLowerCase().includes(query));
+  list.sort((a, b) => (b.GameDate || '').localeCompare(a.GameDate || '') || a.Name.localeCompare(b.Name));
+  list.forEach((r) => {
+    const tr = el('tr');
+    const betCell = el('td', r.Bet);
+    if (r.Boosted) betCell.append(' ', el('span', 'boosted', 'tag'));
+    const res = el('td'); res.append(el('span', r.Result, 'pill ' + r.Result.toLowerCase()));
+    tr.append(el('td', r.GameLabel), el('td', r.Name, 'name'), betCell, el('td', r.Odds == null ? '—' : (r.Odds > 0 ? '+' : '') + r.Odds, 'num'), res, el('td', r.Profit == null ? '—' : money(r.Profit), 'num ' + tone(r.Profit)));
+    body.append(tr);
+  });
+  $('count').textContent = all.length ? 'Showing ' + list.length + ' of ' + all.length + ' bets' : '';
+}
+
+function drawChart(boxId, emptyId, rows, palette) {
+  const box = $(boxId);
+  box.replaceChildren();
+  $(emptyId).hidden = rows.length > 0;
+  box.style.minHeight = rows.length ? '' : '0';
+  if (!rows.length || !window.d3) return;
+
+  const W = Math.max(280, box.clientWidth || 600), H = 300, top = 12, bottom = 30;
+  const names = Array.from(new Set(rows.map((r) => r.Name)));
+  const color = (n) => palette[names.indexOf(n) % palette.length];
+  const seqs = Array.from(new Set(rows.map((r) => r.Seq))).sort((a, b) => a - b);
+  const label = new Map(rows.map((r) => [r.Seq, r.Label]));
+  let lo = Math.min(0, d3.min(rows, (r) => r.Cum)), hi = Math.max(0, d3.max(rows, (r) => r.Cum));
+  if (lo === hi) { lo = -100; hi = 100; }
+  const y = d3.scaleLinear([lo, hi], [H - bottom, top]).nice();
+  const ticks = y.ticks(5);
+
+  const svg = d3.select(box).append('svg').attr('width', '100%').attr('viewBox', '0 0 ' + W + ' ' + H).attr('role', 'img').attr('aria-label', 'Running profit by player');
+  const measure = (cls, txt) => { const t = svg.append('text').attr('class', cls).text(txt); const w = t.node().getComputedTextLength(); t.remove(); return w; };
+  const last = seqs[seqs.length - 1];
+  const ends = names.map((n) => ({ name: n, v: (rows.find((r) => r.Name === n && r.Seq === last) || { Cum: 0 }).Cum }));
+  const endTxt = (e) => e.name + ' ' + money(e.v);
+  const ml = d3.max(ticks, (t) => measure('tick', axisMoney(t))) + 10;
+  const mr = d3.max(ends, (e) => measure('endlabel', endTxt(e))) + 14;
+  const x = d3.scalePoint(seqs, [ml, W - mr]).padding(0.05);
+
+  ticks.forEach((t) => {
+    svg.append('line').attr('x1', ml).attr('x2', W - mr).attr('y1', y(t)).attr('y2', y(t))
+      .attr('stroke', t === 0 ? '#9FB3CC' : '#23497A').attr('stroke-width', 1).attr('stroke-dasharray', t === 0 ? '4 3' : null);
+    svg.append('text').attr('class', 'tick').attr('x', ml - 8).attr('y', y(t)).attr('dy', '0.32em').attr('text-anchor', 'end').text(axisMoney(t));
+  });
+  const span = Math.max(1, W - mr - ml);
+  const step = Math.max(1, Math.ceil((seqs.length * 62) / span));
+  seqs.forEach((s, i) => {
+    if (i % step !== 0) return;
+    const anchor = i === 0 ? 'start' : i + step >= seqs.length ? 'end' : 'middle';
+    svg.append('text').attr('class', 'tick').attr('x', x(s)).attr('y', H - 8).attr('text-anchor', anchor).text(label.get(s));
+  });
+
+  const line = d3.line().x((r) => x(r.Seq)).y((r) => y(r.Cum));
+  names.forEach((n) => {
+    const pts = rows.filter((r) => r.Name === n).sort((a, b) => a.Seq - b.Seq);
+    svg.append('path').datum(pts).attr('d', line).attr('fill', 'none').attr('stroke', color(n)).attr('stroke-width', 2.5).attr('stroke-linecap', 'round').attr('stroke-linejoin', 'round');
+    svg.append('circle').attr('cx', x(last)).attr('cy', y(pts[pts.length - 1].Cum)).attr('r', 3.5).attr('fill', color(n));
+  });
+
+  const pos = ends.map((e) => Object.assign({}, e, { yy: y(e.v) })).sort((a, b) => a.yy - b.yy);
+  for (let k = 1; k < pos.length; k++) if (pos[k].yy - pos[k - 1].yy < 15) pos[k].yy = pos[k - 1].yy + 15;
+  const over = pos.length ? pos[pos.length - 1].yy - (H - bottom) : 0;
+  if (over > 0) pos.forEach((p) => { p.yy -= over; });
+  pos.forEach((p) => svg.append('text').attr('class', 'endlabel').attr('x', x(last) + 8).attr('y', p.yy).attr('dy', '0.32em').attr('fill', color(p.name)).text(endTxt(p)));
+
+  const rule = svg.append('line').attr('y1', top).attr('y2', H - bottom).attr('stroke', '#9FB3CC').attr('stroke-width', 1).style('display', 'none');
+  const dots = svg.append('g').style('display', 'none');
+  const tip = el('div', null, 'tip');
+  box.append(tip);
+  const show = (event) => {
+    const [px] = d3.pointer(event, svg.node());
+    const s = seqs.reduce((best, q) => (Math.abs(x(q) - px) < Math.abs(x(best) - px) ? q : best), seqs[0]);
+    const at = rows.filter((r) => r.Seq === s).sort((a, b) => b.Cum - a.Cum);
+    rule.attr('x1', x(s)).attr('x2', x(s)).style('display', null);
+    dots.style('display', null).selectAll('circle').data(at).join('circle').attr('cx', x(s)).attr('cy', (r) => y(r.Cum)).attr('r', 4).attr('fill', (r) => color(r.Name));
+    tip.replaceChildren(el('div', label.get(s), 'tip-head'));
+    at.forEach((r) => { const row = el('div', null, 'tip-row'); const sw = el('span', null, 'sw'); sw.style.background = color(r.Name); row.append(sw, el('span', r.Name), el('b', money(r.Cum))); tip.append(row); });
+    tip.style.display = 'grid';
+    const scale = box.clientWidth / W;
+    let left = x(s) * scale + 12;
+    if (left + tip.offsetWidth > box.clientWidth - 4) left = x(s) * scale - tip.offsetWidth - 12;
+    tip.style.left = Math.max(0, left) + 'px';
+  };
+  svg.append('rect').attr('x', ml).attr('y', 0).attr('width', span).attr('height', H).attr('fill', 'transparent')
+    .on('pointermove', show).on('pointerdown', show)
+    .on('pointerleave', () => { rule.style('display', 'none'); dots.style('display', 'none'); tip.style.display = 'none'; });
+}
+
+function drawParlay() {
+  const list = state.parlays;
+  const decided = list.filter((p) => p.Result === 'Win' || p.Result === 'Loss');
+  const hits = decided.filter((p) => p.Result === 'Win');
+  const total = Math.round(list.reduce((t, p) => t + (p.Profit || 0), 0) * 100) / 100;
+  $('parlayProfit').textContent = money(total);
+  $('parlayProfit').className = tone(total);
+  $('parlayRecord').textContent = hits.length + ' of ' + decided.length;
+  const best = hits.slice().sort((a, b) => b.Profit - a.Profit)[0];
+  $('parlayBest').textContent = best ? money(best.Profit) : '—';
+  $('parlayBest').className = best ? 'pos' : '';
+  $('parlayBestNote').textContent = best ? 'Best hit, ' + best.Label + ' at ' + fmtOdds(best.Odds) : 'Best hit';
+
+  drawChart('parlayChart', 'parlayChartEmpty', state.parlayRunning, ['#F58426']);
+
+  const body = $('parlayBody');
+  body.replaceChildren();
+  list.slice().reverse().forEach((p) => {
+    const tr = el('tr');
+    const legsCell = el('td', p.legs.length + (p.legs.length === 1 ? ' leg' : ' legs'));
+    const ul = el('ul', null, 'legs');
+    p.legs.forEach((l) => ul.append(el('li', l.Name + ': ' + l.Bet + ' (' + fmtOdds(l.Odds) + ')', l.Result.toLowerCase())));
+    legsCell.append(ul);
+    const res = el('td'); res.append(el('span', p.Result, 'pill ' + p.Result.toLowerCase()));
+    tr.append(el('td', p.Label), legsCell, el('td', fmtOdds(p.Odds), 'num'), res, el('td', p.Profit == null ? '—' : money(p.Profit), 'num ' + tone(p.Profit)));
+    body.append(tr);
+  });
+}
+
+function render() {
+  drawBoard(); drawStandings(); drawChips(); drawLog();
+  drawChart('chart', 'chartEmpty', state.running, SERIES);
+  drawParlay();
+}
+
+/* ---------- Loading ---------- */
+async function load() {
+  $('updated').textContent = 'Checking for new picks';
+  try {
+    const res = await fetch(CSV_URL + (CSV_URL.includes('?') ? '&' : '?') + '_=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) throw new Error('The sheet answered with status ' + res.status + '.');
+    const text = await res.text();
+    if (/^\s*</.test(text)) throw new Error('The sheet isn’t public. In Google Sheets, click Share and set General access to “Anyone with the link: Viewer.”');
+    const graded = grade(parseCsv(text));
+    const games = parlays(graded);
+    state = { graded, standings: standings(graded), running: running(graded), parlays: games, parlayRunning: parlayRunning(games) };
+    $('error').hidden = true;
+    render();
+    firstLoad = false;
+    $('updated').textContent = 'Updated ' + new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  } catch (err) {
+    $('error').textContent = 'Couldn’t load the latest picks. ' + (err && err.message ? err.message : '') + ' The board shows the last results it loaded.';
+    $('error').hidden = false;
+    $('updated').textContent = 'Last load failed';
+    if (firstLoad) render();
+  }
+}
+
+$('refresh').addEventListener('click', load);
+$('search').addEventListener('input', (e) => { query = e.target.value.trim().toLowerCase(); drawLog(); });
+let resizeTimer;
+window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { drawChart('chart', 'chartEmpty', state.running, SERIES); drawChart('parlayChart', 'parlayChartEmpty', state.parlayRunning, ['#F58426']); }, 150); });
+setInterval(load, REFRESH_MINUTES * 60 * 1000);
+load();
+</script>
+</body>
+</html>
