@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>KFS Best Bets 2026-27</title>
+<title>Best Bets | KFS Betting & Sweating 2026-27</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏀</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -131,8 +131,8 @@
 <div class="wrap">
   <header class="head">
     <div>
-      <h1>KFS Best Bets</h1>
-      <p>Every pick counts as a $100 bet.</p>
+      <h1>Best Bets</h1>
+      <p>KFS Betting &amp; Sweating 2026-27. Every pick counts as a $100 bet.</p>
     </div>
     <div class="updated">
       <span id="updated">Loading the latest picks</span>
@@ -293,6 +293,13 @@ function grade(bets) {
       const lead = w === 'Knicks team total' ? 'Knicks TT ' : w === 'Opponent team total' ? opp + ' TT ' : '';
       bet = lead + String(b['Total: Over / Under'] || '').toLowerCase() + ' ' + b['Total: Line'] + per(b['Total: Period']);
       bet = bet.charAt(0).toUpperCase() + bet.slice(1);
+    } else if (type === 'Team prop') {
+      const t = b['Team prop: Team'];
+      const who = t === 'Knicks' ? 'Knicks' : t === 'Opponent' ? opp : 'Game';
+      const mk = String(b['Team prop: Market'] || '');
+      bet = mk === 'Highest scoring quarter'
+        ? who + ' highest scoring quarter: ' + b['Team prop: Quarter']
+        : who + ' ' + String(b['Team prop: Over / Under'] || '').toLowerCase() + ' ' + b['Team prop: Line'] + ' ' + mk.replace(/^Total /, '');
     } else {
       bet = String(b['Other: Describe the bet'] || '').trim();
     }
