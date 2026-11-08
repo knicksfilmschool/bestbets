@@ -132,7 +132,7 @@
   <header class="head">
     <div>
       <h1>Best Bets</h1>
-      <p>KFS Betting &amp; Sweating 2026-27. Every pick counts as a $100 bet.</p>
+      <p>KFS Betting &amp; Sweating 2026-27. Every pick is a 1-unit bet.</p>
     </div>
     <div class="updated">
       <span id="updated">Loading the latest picks</span>
@@ -158,7 +158,7 @@
 
   <section class="panel" id="leaderboard">
     <h2>Leaderboard</h2>
-    <p class="note">Season profit if everyone bet $100 on every pick. Win % leaves out voids, and pending bets count once they're graded.</p>
+    <p class="note">Season profit in units, with every pick a 1-unit bet. Win % leaves out voids, and pending bets count once they're graded.</p>
     <div class="scroll">
       <table class="standings">
         <thead><tr><th>#</th><th>Name</th><th>W-L-V</th><th class="num">Win %</th><th class="num hide-sm">Pending</th><th class="num">Profit</th></tr></thead>
@@ -176,9 +176,9 @@
 
   <section class="panel" id="parlay">
     <h2>Game parlay</h2>
-    <p class="note">What if every best bet for a game went into one $10 parlay? One loss sinks it, a voided leg drops out and the payout multiplies every remaining leg’s odds.</p>
+    <p class="note">What if every best bet for a game went into one 0.1-unit parlay? One loss sinks it, a voided leg drops out and the payout multiplies every remaining leg’s odds.</p>
     <div class="stats">
-      <div class="stat"><b id="parlayProfit">$0.00</b><span>Season profit</span></div>
+      <div class="stat"><b id="parlayProfit">0.0u</b><span>Season profit</span></div>
       <div class="stat"><b id="parlayRecord">0 of 0</b><span>Parlays hit</span></div>
       <div class="stat"><b id="parlayBest">—</b><span id="parlayBestNote">Best hit</span></div>
     </div>
@@ -209,7 +209,7 @@
     </div>
   </section>
 
-  <footer>Scoring: a winner at minus odds pays $100 × 100 ÷ odds, a winner at plus odds pays the odds, a loss is −$100 and a void is $0. Boosted odds are used when entered. Game parlays multiply each leg’s decimal odds on a $10 stake; a loss is −$10. Real sportsbooks price same-game parlays lower than this, so treat it as a fun what-if. Updates automatically every 5 minutes.</footer>
+  <footer>Scoring: every pick is 1 unit. A winner at minus odds pays 100 ÷ odds units, a winner at plus odds pays odds ÷ 100 units, a loss is −1 unit and a void is 0. Boosted odds are used when entered. Game parlays multiply each leg’s decimal odds on a 0.1-unit stake; a loss is −0.1 units. Real sportsbooks price same-game parlays lower than this, so treat it as a fun what-if. Updates automatically every 5 minutes.</footer>
 </div>
 
 <script>
@@ -218,7 +218,7 @@
 const SHEET_ID = '1g3C0TU6ev_DMQXq6s_Cul1Pcw-jXEL71ZuCAdGYP5YQ';
 const SHEET_TAB = 'Best Bets';
 // Optional: paste a "Publish to web" CSV link here to use it instead.
-const PUBLISHED_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS34rqQwZ1nqAuy-hb2leLQU2XgU0wqo30LHimP7DcSRhAXRID7G49-7dpIrhT-OPnb9Zaf7T7yRYNL/pub?gid=1141115037&single=true&output=csv';
+const PUBLISHED_CSV_URL = '';
 const CREW = ['Andrew', 'Jeff', 'Jon', 'Mensa', 'Shawn'];
 const REFRESH_MINUTES = 5;
 const PARLAY_STAKE = 10;
@@ -234,8 +234,9 @@ const SERIES = ['#F58426', '#4FA3E0', '#F2C14E', '#C9CED6', '#A78BFA', '#4CC38A'
 
 const $ = (id) => document.getElementById(id);
 const el = (tag, text, cls) => { const n = document.createElement(tag); if (text != null) n.textContent = text; if (cls) n.className = cls; return n; };
-const money = (v) => (v == null || !isFinite(v) ? '—' : (v > 0 ? '+' : v < 0 ? '−' : '') + '$' + Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
-const axisMoney = (v) => (v < 0 ? '−' : '') + '$' + Math.abs(v).toLocaleString('en-US');
+// Profit is tracked in dollars on a $100 stake; it displays as units (1u = $100), one decimal place.
+const money = (v) => { if (v == null || !isFinite(v)) return '—'; const u = Math.round(v / 10) / 10; return (u > 0 ? '+' : u < 0 ? '−' : '') + Math.abs(u).toFixed(1) + 'u'; };
+const axisMoney = (v) => (v < 0 ? '−' : '') + String(Math.round(Math.abs(v)) / 100) + 'u';
 const tone = (v) => (v > 0 ? 'pos' : v < 0 ? 'neg' : '');
 const pad = (n) => String(n).padStart(2, '0');
 const num = (s) => { const t = String(s == null ? '' : s).trim(); if (!t) return null; const n = Number(t.replace(/[^0-9.+-]/g, '')); return isFinite(n) ? n : null; };
@@ -395,7 +396,7 @@ function drawBoard() {
   if (!played.length) {
     $('boardLabel').textContent = 'No bets graded yet';
     $('boardNames').textContent = 'Everyone is even';
-    $('boardProfit').textContent = '$0.00';
+    $('boardProfit').textContent = '0.0u';
     $('boardNote').textContent = 'The leader shows up here once the first results are in.';
     return;
   }
