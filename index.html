@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
 <title>Best Bets | KFS Betting & Sweating 2026-27</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏀</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -22,8 +23,27 @@
     --blue: #006BB6;
     --win: #1E8A55;
     --loss: #D8352F;
+    --grid: #E3E8EF;       /* chart gridlines */
+    --axis: #8A97A8;       /* chart zero line + hover rule */
+    color-scheme: light;
     --display: 'Big Shoulders Display', 'Arial Narrow', Impact, sans-serif;
     --body: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  }
+  /* Dark mode: Knicks navy, same orange + blue trim */
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --court: #0A1A30;
+      --court-2: #12284A;
+      --line: #2A456B;
+      --chalk: #F2F4F7;
+      --muted: #A9B8CC;
+      --blue: #3D9BE9;
+      --win: #4CC38A;
+      --loss: #FF7A7A;
+      --grid: #22395C;
+      --axis: #6F84A0;
+      color-scheme: dark;
+    }
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; }
@@ -234,7 +254,9 @@ const CSV_URL = PUBLISHED_CSV_URL ||
 const TEAMS = { 'Atlanta Hawks': 'ATL', 'Boston Celtics': 'BOS', 'Brooklyn Nets': 'BKN', 'Charlotte Hornets': 'CHA', 'Chicago Bulls': 'CHI', 'Cleveland Cavaliers': 'CLE', 'Dallas Mavericks': 'DAL', 'Denver Nuggets': 'DEN', 'Detroit Pistons': 'DET', 'Golden State Warriors': 'GSW', 'Houston Rockets': 'HOU', 'Indiana Pacers': 'IND', 'Los Angeles Clippers': 'LAC', 'Los Angeles Lakers': 'LAL', 'Memphis Grizzlies': 'MEM', 'Miami Heat': 'MIA', 'Milwaukee Bucks': 'MIL', 'Minnesota Timberwolves': 'MIN', 'New Orleans Pelicans': 'NOP', 'Oklahoma City Thunder': 'OKC', 'Orlando Magic': 'ORL', 'Philadelphia 76ers': 'PHI', 'Phoenix Suns': 'PHX', 'Portland Trail Blazers': 'POR', 'Sacramento Kings': 'SAC', 'San Antonio Spurs': 'SAS', 'Toronto Raptors': 'TOR', 'Utah Jazz': 'UTA', 'Washington Wizards': 'WAS' };
 const STAT = { 'Points': 'points', 'Rebounds': 'rebounds', 'Assists': 'assists', '3PM': '3PM', 'Steals': 'steals', 'Blocks': 'blocks', 'Stocks (steals + blocks)': 'stocks', 'PRA (points + rebounds + assists)': 'PRA', 'Points + Rebounds': 'P+R', 'Points + Assists': 'P+A', 'Rebounds + Assists': 'R+A', 'FG made': 'FG made', 'FG attempted': 'FGA', 'Double-double': 'double-double', 'Triple-double': 'triple-double' };
 const MONTHS = { Jan: 1, Feb: 2, Mar: 3, Apr: 4, May: 5, Jun: 6, Jul: 7, Aug: 8, Sep: 9, Oct: 10, Nov: 11, Dec: 12 };
-const SERIES = ['#F58426', '#006BB6', '#0B2240', '#8A97A8', '#1E8A55', '#D8352F', '#7C5CC4', '#00A3AD'];
+// Entries starting with -- are read from the page's colors, so they flip with dark mode.
+const SERIES = ['#F58426', '--blue', '--chalk', '#8A97A8', '--win', '--loss', '#7C5CC4', '#00A3AD'];
+const cssVar = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 
 const $ = (id) => document.getElementById(id);
 const el = (tag, text, cls) => { const n = document.createElement(tag); if (text != null) n.textContent = text; if (cls) n.className = cls; return n; };
@@ -477,7 +499,8 @@ function drawChart(boxId, emptyId, rows, palette) {
 
   const W = Math.max(280, box.clientWidth || 600), H = 300, top = 12, bottom = 30;
   const names = Array.from(new Set(rows.map((r) => r.Name)));
-  const color = (n) => palette[names.indexOf(n) % palette.length];
+  const pal = palette.map((c) => (c.indexOf('--') === 0 ? cssVar(c) : c));
+  const color = (n) => pal[names.indexOf(n) % pal.length];
   const seqs = Array.from(new Set(rows.map((r) => r.Seq))).sort((a, b) => a - b);
   const label = new Map(rows.map((r) => [r.Seq, r.Label]));
   let lo = Math.min(0, d3.min(rows, (r) => r.Cum)), hi = Math.max(0, d3.max(rows, (r) => r.Cum));
@@ -496,7 +519,7 @@ function drawChart(boxId, emptyId, rows, palette) {
 
   ticks.forEach((t) => {
     svg.append('line').attr('x1', ml).attr('x2', W - mr).attr('y1', y(t)).attr('y2', y(t))
-      .attr('stroke', t === 0 ? '#8A97A8' : '#E3E8EF').attr('stroke-width', 1).attr('stroke-dasharray', t === 0 ? '4 3' : null);
+      .attr('stroke', t === 0 ? cssVar('--axis') : cssVar('--grid')).attr('stroke-width', 1).attr('stroke-dasharray', t === 0 ? '4 3' : null);
     svg.append('text').attr('class', 'tick').attr('x', ml - 8).attr('y', y(t)).attr('dy', '0.32em').attr('text-anchor', 'end').text(axisMoney(t));
   });
   const span = Math.max(1, W - mr - ml);
@@ -520,7 +543,7 @@ function drawChart(boxId, emptyId, rows, palette) {
   if (over > 0) pos.forEach((p) => { p.yy -= over; });
   pos.forEach((p) => svg.append('text').attr('class', 'endlabel').attr('x', x(last) + 8).attr('y', p.yy).attr('dy', '0.32em').attr('fill', color(p.name)).text(endTxt(p)));
 
-  const rule = svg.append('line').attr('y1', top).attr('y2', H - bottom).attr('stroke', '#8A97A8').attr('stroke-width', 1).style('display', 'none');
+  const rule = svg.append('line').attr('y1', top).attr('y2', H - bottom).attr('stroke', cssVar('--axis')).attr('stroke-width', 1).style('display', 'none');
   const dots = svg.append('g').style('display', 'none');
   const tip = el('div', null, 'tip');
   box.append(tip);
@@ -556,7 +579,7 @@ function drawParlay() {
   $('parlayBest').className = best ? 'pos' : '';
   $('parlayBestNote').textContent = best ? 'Best hit, ' + best.Label + ' at ' + fmtOdds(best.Odds) : 'Best hit';
 
-  drawChart('parlayChart', 'parlayChartEmpty', state.parlayRunning, ['#006BB6']);
+  drawChart('parlayChart', 'parlayChartEmpty', state.parlayRunning, ['--blue']);
 
   const body = $('parlayBody');
   body.replaceChildren();
@@ -604,8 +627,13 @@ async function load() {
 $('refresh').addEventListener('click', load);
 $('search').addEventListener('input', (e) => { query = e.target.value.trim().toLowerCase(); drawLog(); });
 let resizeTimer;
-window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { drawChart('chart', 'chartEmpty', state.running, SERIES); drawChart('parlayChart', 'parlayChartEmpty', state.parlayRunning, ['#006BB6']); }, 150); });
+window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { drawChart('chart', 'chartEmpty', state.running, SERIES); drawChart('parlayChart', 'parlayChartEmpty', state.parlayRunning, ['--blue']); }, 150); });
 setInterval(load, REFRESH_MINUTES * 60 * 1000);
+if (window.matchMedia) {
+  const mq = window.matchMedia('(prefers-color-scheme: dark)');
+  const redraw = () => { drawChart('chart', 'chartEmpty', state.running, SERIES); drawChart('parlayChart', 'parlayChartEmpty', state.parlayRunning, ['--blue']); };
+  if (mq.addEventListener) mq.addEventListener('change', redraw); else if (mq.addListener) mq.addListener(redraw);
+}
 load();
 </script>
 </body>
